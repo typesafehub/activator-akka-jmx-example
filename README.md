@@ -1,6 +1,6 @@
 # Akka JMX Example
 
-This is an example of how to integrate JMX into your Akka Actors.  Using this method, you can look inside a running Akka application and see exactly what sort of state your actors are in.  Thanks to Jamie Allen for the idea in his book, _Effective Akka_.
+This is an example of how to integrate JMX into your Akka Actors.  Using this method, you can look inside a running Akka application and see exactly what sort of state your actors are in.  Thanks to [Jamie Allen](http://shinolajla.tumblr.com/) for the idea in his book, _[Effective Akka](http://smile.amazon.com/dp/1449360076)_.
 
 ## Running
 
@@ -30,7 +30,7 @@ You should see this:
 
 ## Overview
 
-Actors are relatively simple to set up in JMX, as long as you play by the rules: always use an MXBean (which does not require  JAR downloads over RMI), and always create a view class that JMX is happy with.
+Actors are relatively simple to set up in JMX, as long as you play by the rules: always use an [MXBean](http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html) (which does not require JAR downloads over RMI), and always create a custom class that provides a view that the MXBean is [happy with](http://stackoverflow.com/a/7514800/5266).
 
 Here's the Actor with an exposed JMX GreeterMXBean. As long as it ends in "MXBean", JMX is happy.  It will display the properties defined in that trait:
 
@@ -73,10 +73,12 @@ class Greeter extends ActorWithJMX with GreeterMXBean {
 
 The raw GreetingHistory case class looks like this:
 
+```scala
 case class GreetingHistory(lastGreetedDate: java.util.Date,
                            greeting: String,
                            sender: ActorRef,
                            randomSet:Set[String] = Set("1", "2", "3"))
+```
 
 Here's how to display it using a view class for JMX:
 
@@ -88,7 +90,8 @@ Here's how to display it using a view class for JMX:
 class GreetingHistoryMXView @ConstructorProperties(Array(
   "lastGreetingDate",
   "greeting",
-  "sender")
+  "sender",
+  "randomSet")
 ) private(@BeanProperty val lastGreetingDate: java.util.Date,
           @BeanProperty val greeting: String,
           @BeanProperty val sender: String,
@@ -116,7 +119,7 @@ object GreetingHistoryMXView {
 }
 ```
 
-Here's how to display it using an in place CompositeDataView:
+Here's how to display it using an in place [CompositeDataView](http://docs.oracle.com/javase/8/docs/api/javax/management/openmbean/CompositeDataView.html):
 
 ```scala
 case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
