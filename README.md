@@ -119,7 +119,9 @@ object GreetingHistoryMXView {
 }
 ```
 
-Here's how to display it using an in place [CompositeDataView](http://docs.oracle.com/javase/8/docs/api/javax/management/openmbean/CompositeDataView.html):
+Note the use of [ConstructorProperties](http://docs.oracle.com/javase/7/docs/api/java/beans/ConstructorProperties.html) and [BeanProperties](http://www.scala-lang.org/api/current/index.html#scala.beans.BeanProperty) to produce a JavaBean in the format that JMX expects.  Also note that scala Set is not visible through JMX, and a JavaConverter *cannot* be used here.  Instead, [a structural copy](http://stackoverflow.com/a/24840520/5266) must be done to create a Java Set without the wrapper.
+
+Using a view class is the recommended way to display Scala data in JMX, as it's relatively simple to set up and can be packaged outside of the main class.  However, it is possible to embed the JMX logic inside the case class itself, using an in place [CompositeDataView](http://docs.oracle.com/javase/8/docs/api/javax/management/openmbean/CompositeDataView.html):
 
 ```scala
 case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
@@ -169,3 +171,35 @@ case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
   }
 }
 ```
+
+This is messier than using a view, and does not really give you any more programmatic control.  It does, however, minimize the number of types that need to be created.
+
+Finally, the type which registers the Actor with JMX is defined here:
+
+```
+trait ActorWithJMX extends Actor {
+  import jmxexample.AkkaJmxRegistrar._
+
+  val objName = new ObjectName("jmxexample", {
+    import scala.collection.JavaConverters._
+    new java.util.Hashtable(
+      Map(
+        "name" -> self.path.toStringWithoutAddress,
+        "type" -> getMXTypeName
+      ).asJava
+    )
+  })
+
+  def getMXTypeName : String
+
+  override def preStart() = mbs.registerMBean(this, objName)
+
+  override def postStop() = mbs.unregisterMBean(objName)
+}
+```
+
+The `MXTypeName` is defined by the implementing class, and the actor is defined with its path name and registered in the preStart method when the actor is instantiated.
+
+## Future Directions
+
+There's a number of things that can be done with JMX, particularly if macros are involved.  Actors are shown here because they are notoriously dynamic, but any part of your system can be similarly instrumented to expose their state in a running application.
