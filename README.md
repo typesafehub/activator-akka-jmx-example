@@ -30,7 +30,7 @@ You should see this:
 
 ## Overview
 
-Actors are relatively simple to set up in JMX, as long as you play by the rules: always use an [MXBean](http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html) (which does not require JAR downloads over RMI), and always create a custom class that provides a view that the MXBean is [happy with](http://stackoverflow.com/a/7514800/5266).
+Actors are relatively simple to set up in JMX, as long as you play by the rules: always use an [MXBean](http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html) (which does not require JAR downloads over RMI), always think about thread safety when [exposing internal variables](http://pveentjer.wordpress.com/2006/11/09/jmx-and-concurrency-problems/), and always create a custom class that provides a view that the MXBean is [happy with](http://stackoverflow.com/a/7514800/5266).
 
 Here's the Actor with an exposed JMX GreeterMXBean. As long as it ends in "MXBean", JMX is happy.  It will display the properties defined in that trait:
 
@@ -51,6 +51,9 @@ class Greeter extends ActorWithJMX with GreeterMXBean {
 
   private[this] var greeting = ""
 
+  // IMPORTANT: because JMX and the actor access greetingHistory through
+  // different threads, it should be marked as volatile to keep memory synchronized.
+  @volatile
   private[this] var greetingHistory: Option[GreetingHistory] = None
 
   def getGreetingHistory: GreetingHistory = greetingHistory.orNull
@@ -203,3 +206,5 @@ The `MXTypeName` is defined by the implementing class, and the actor is defined 
 ## Future Directions
 
 There's a number of things that can be done with JMX, particularly if macros are involved.  Actors are shown here because they are notoriously dynamic, but any part of your system can be similarly instrumented to expose their state in a running application.
+
+You may also be interested in [JAJMX](https://github.com/dacr/jajmx), a high level JMX API designed for Scala.

@@ -32,6 +32,9 @@ class Greeter extends ActorWithJMX with GreeterMXBean {
 
   private[this] var greeting = ""
 
+  // IMPORTANT: because JMX and the actor access greetingHistory through
+  // different threads, it should be marked as volatile to keep memory synchronized.
+  @volatile
   private[this] var greetingHistory: Option[GreetingHistory] = None
 
   def getGreetingHistory: GreetingHistory = greetingHistory.orNull
