@@ -1,11 +1,7 @@
 package jmxexample
 
-import javax.management.openmbean._
+import akka.actor.{ Actor, ActorRef, ActorSystem, Inbox, Props }
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Inbox, Props}
-
-import scala.beans.BeanProperty
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
 case object Greet
@@ -30,7 +26,7 @@ trait GreeterMXBean {
  */
 class Greeter extends ActorWithJMX with GreeterMXBean {
 
-  private[this] var greeting = ""
+  private[this] var greeting: String = ""
 
   // IMPORTANT: because JMX and the actor access greetingHistory through
   // different threads, it should be marked as volatile to keep memory synchronized.
@@ -41,7 +37,7 @@ class Greeter extends ActorWithJMX with GreeterMXBean {
 
   def getGreetingHistoryMXView: GreetingHistoryMXView = greetingHistory.map(GreetingHistoryMXView(_)).orNull
 
-  def receive = {
+  def receive: Receive = {
     case WhoToGreet(who) =>
       greeting = s"hello, $who"
     case Greet =>
@@ -57,7 +53,7 @@ class Greeter extends ActorWithJMX with GreeterMXBean {
 // prints a greeting
 class GreetPrinter extends Actor {
 
-  def receive = {
+  override def receive: Receive = {
     case Greeting(message) =>
       sender ! GreetingAcknowledged
       println(message)
@@ -66,11 +62,11 @@ class GreetPrinter extends Actor {
 
 object Main extends App {
 
-  val system = ActorSystem("jmxexample")
+  val system: ActorSystem = ActorSystem("jmxexample")
 
-  val greeter = system.actorOf(Props[Greeter], "greeter")
+  val greeter: ActorRef = system.actorOf(Props[Greeter], "greeter")
 
-  val inbox = Inbox.create(system)
+  val inbox: Inbox = Inbox.create(system)
 
   // Tell the 'greeter' to change its 'greeting' message
   greeter.tell(WhoToGreet("akka"), ActorRef.noSender)
@@ -90,7 +86,7 @@ object Main extends App {
   val Greeting(message2) = inbox.receive(5.seconds)
   println(s"Greeting: $message2")
 
-  val greetPrinter = system.actorOf(Props[GreetPrinter], "greetPrinter")
+  val greetPrinter: ActorRef = system.actorOf(Props[GreetPrinter], "greetPrinter")
 
   system.scheduler.schedule(0.seconds, 1.second, greeter, Greet)(system.dispatcher, greetPrinter)
 }

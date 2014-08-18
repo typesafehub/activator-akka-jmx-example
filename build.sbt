@@ -7,3 +7,5 @@ scalaVersion := "2.11.2"
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.3.5"
 )
+
+scalariformSettings

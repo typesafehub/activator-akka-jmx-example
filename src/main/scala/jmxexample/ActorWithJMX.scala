@@ -1,16 +1,16 @@
 package jmxexample
 
 import java.lang.management.ManagementFactory
-import javax.management.ObjectName
+import javax.management.{ ObjectInstance, MBeanServer, ObjectName }
 
 import akka.actor.Actor
 
 object AkkaJmxRegistrar {
-  val mbs = ManagementFactory.getPlatformMBeanServer
+  val mbs: MBeanServer = ManagementFactory.getPlatformMBeanServer
 
-  def registerToMBeanServer(actor: Actor, objName: ObjectName) = mbs.registerMBean(actor, objName)
+  def registerToMBeanServer(actor: Actor, objName: ObjectName): ObjectInstance = mbs.registerMBean(actor, objName)
 
-  def unregisterFromMBeanServer(objName: ObjectName) = mbs.unregisterMBean(objName)
+  def unregisterFromMBeanServer(objName: ObjectName): Unit = mbs.unregisterMBean(objName)
 }
 
 /**
@@ -19,7 +19,7 @@ object AkkaJmxRegistrar {
 trait ActorWithJMX extends Actor {
   import jmxexample.AkkaJmxRegistrar._
 
-  val objName = new ObjectName("jmxexample", {
+  val objName: ObjectName = new ObjectName("jmxexample", {
     import scala.collection.JavaConverters._
     new java.util.Hashtable(
       Map(
@@ -29,9 +29,9 @@ trait ActorWithJMX extends Actor {
     )
   })
 
-  def getMXTypeName : String
+  def getMXTypeName: String
 
-  override def preStart() = mbs.registerMBean(this, objName)
+  override def preStart(): Unit = mbs.registerMBean(this, objName)
 
-  override def postStop() = mbs.unregisterMBean(objName)
+  override def postStop(): Unit = mbs.unregisterMBean(objName)
 }

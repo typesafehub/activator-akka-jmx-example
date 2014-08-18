@@ -22,9 +22,9 @@ import scala.collection.mutable.ListBuffer
  * as it can be defined well away from the case class itself.
  */
 case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
-                           @BeanProperty greeting: String,
-                           sender: ActorRef,
-                           randomSet:Set[String] = Set("1", "2", "3")) extends CompositeDataView {
+    @BeanProperty greeting: String,
+    sender: ActorRef,
+    randomSet: Set[String] = Set("1", "2", "3")) extends CompositeDataView {
 
   /**
    * Converts the GreetingHistory into a CompositeData object, including the "sender" value.
@@ -76,10 +76,10 @@ class GreetingHistoryMXView @ConstructorProperties(Array(
   "lastGreetingDate",
   "greeting",
   "sender")
-) private(@BeanProperty val lastGreetingDate: java.util.Date,
-          @BeanProperty val greeting: String,
-          @BeanProperty val sender: String,
-          @BeanProperty val randomSet:java.util.Set[String])
+) private (@BeanProperty val lastGreetingDate: java.util.Date,
+  @BeanProperty val greeting: String,
+  @BeanProperty val sender: String,
+  @BeanProperty val randomSet: java.util.Set[String])
 
 /**
  * Companion object for the GreetingHistory view class.  Takes a GreetingHistory and
