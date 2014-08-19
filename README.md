@@ -181,7 +181,7 @@ This is messier than using a view, and does not really give you any more program
 
 Finally, the type which registers the Actor with JMX is defined here:
 
-```
+```scala
 trait ActorWithJMX extends Actor {
   import jmxexample.AkkaJmxRegistrar._
 
