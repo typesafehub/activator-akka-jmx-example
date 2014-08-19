@@ -1,40 +1,29 @@
-#Exposing Akka Actor State Through JMX
-
-This is an example of how to integrate JMX into your Akka Actors.  Using this method, you can look inside a running Akka application and see exactly what sort of state your actors are in.  Thanks to [Jamie Allen](http://shinolajla.tumblr.com/) for the idea in his book, _[Effective Akka](http://smile.amazon.com/dp/1449360076)_.
-
-## Running
-
-Start up Activator with the following options:
-
-```
+<html>
+<head>
+    <title>Exposing Akka Actor State Through JMX</title>
+</head>
+<body>
+<p>This is an example of how to integrate JMX into your Akka Actors. Using this method, you can look inside a running Akka application and see exactly what sort of state your actors are in. Thanks to <a href="http://shinolajla.tumblr.com/" target="_blank">Jamie Allen</a> for the idea in his book, <em><a href="http://smile.amazon.com/dp/1449360076" target="_blank">Effective Akka</a></em>.</p>
+<div>
+<h2>Running</h2>
+<p>Start up Activator with the following options</p>
+<code><pre>
 export JAVA_OPTS="-XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:FlightRecorderOptions=samplethreads=true -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9191 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost"
 export java_opts=$JAVA_OPTS
 activator "runMain jmxexample.Main"
-```
-
-Then in another console, start up your JMX tool.  In this example, we are using :
-
-```
+</pre></code>
+<p>Then in another console, start up your JMX tool. In this example, we are using </p>
+<code><pre>
 jmc
-```
-
-1. Using Java Mission Control, connect to the NettyServer application listed in the right tree view.
-1. Go to "MBean Server" item in the tree view on the right.
-1. Click on "MBean Browser" in the second tab at the bottom.
-1. Open up the "jmxexample" tree folder, then "GreeterMXBean", then "/user/master".  You'll see the attributes on the right.
-1. Hit F5 a lot to refresh.
-
-You should see this:
-
-![Example of JMC with jmxexample MXBean](tutorial/jmxexample.jpg)
-
-##Creating an MXBean with an External View Class
-
-Actors are relatively simple to set up in JMX, as long as you play by the rules: always use an [MXBean](http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html) (which does not require JAR downloads over RMI), always think about thread safety when [exposing internal variables](http://pveentjer.wordpress.com/2006/11/09/jmx-and-concurrency-problems/), and always create a custom class that provides a view that the MXBean is [happy with](http://stackoverflow.com/a/7514800/5266).
-
-Here's the Actor with an exposed JMX GreeterMXBean. As long as it ends in "MXBean", JMX is happy.  It will display the properties defined in that trait:
-
-```scala
+</pre></code>
+<p>You should see this</p>
+<p><img src="tutorial/jmxexample.jpg" title="Example of JMC with jmxexample MXBean"/></p>
+</div>
+<div>
+<h2>Creating an MXBean with an External View Class</h2>
+<p>Actors are relatively simple to set up in JMX, as long as you play by the rules always use an <a href="http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html" target="_blank">MXBean</a> (which does not require JAR downloads over RMI), always think about thread safety when <a href="http://pveentjer.wordpress.com/2006/11/09/jmx-and-concurrency-problems/" target="_blank">exposing internal variables</a>, and always create a custom class that provides a view that the MXBean is <a href="http://stackoverflow.com/a/7514800/5266" target="_blank">happy with</a>.</p>
+<p>Here's the Actor with an exposed JMX GreeterMXBean. As long as it ends in "MXBean", JMX is happy. It will display the properties defined in that trait</p>
+<code><pre>
 /**
  * MXBean interface: this determines what the JMX tool will see.
  */
@@ -72,20 +61,16 @@ class Greeter extends ActorWithJMX with GreeterMXBean {
   // Maps the MXType to this actor.
   override def getMXTypeName: String = "GreeterMXBean"
 }
-```
-
-The raw GreetingHistory case class looks like this:
-
-```scala
+</pre></code>
+<p>The raw GreetingHistory case class looks like this</p>
+<code><pre>
 case class GreetingHistory(lastGreetedDate: java.util.Date,
                            greeting: String,
                            sender: ActorRef,
                            randomSet:Set[String] = Set("1", "2", "3"))
-```
-
-Here's how to display it using a view class for JMX:
-
-```scala
+</pre></code>
+<p>Here's how to display it using a view class for JMX</p>
+<code><pre>
 /**
  * The custom MX view class for GreetingHistory.  Private so it can only be
  * called by the companion object.
@@ -120,15 +105,13 @@ object GreetingHistoryMXView {
     javaSet
   }
 }
-```
-
-Note the use of [ConstructorProperties](http://docs.oracle.com/javase/7/docs/api/java/beans/ConstructorProperties.html) and [BeanProperties](http://www.scala-lang.org/api/current/index.html#scala.beans.BeanProperty) to produce a JavaBean in the format that JMX expects.  Also note that scala Set is not visible through JMX, and a JavaConverter *cannot* be used here.  Instead, [a structural copy](http://stackoverflow.com/a/24840520/5266) must be done to create a Java Set without the wrapper.
-
-## Creating In Place JMX views with CompositeDataView
-
-Using a view class is the recommended way to display Scala data in JMX, as it's relatively simple to set up and can be packaged outside of the main class.  However, it is possible to embed the JMX logic inside the case class itself, using an in place [CompositeDataView](http://docs.oracle.com/javase/8/docs/api/javax/management/openmbean/CompositeDataView.html).
-
-```scala
+</pre></code>
+<p>Note the use of <a href="http://docs.oracle.com/javase/7/docs/api/java/beans/ConstructorProperties.html" target="_blank">ConstructorProperties</a> and <a href="http://www.scala-lang.org/api/current/index.html#scala.beans.BeanProperty" target="_blank">BeanProperties</a> to produce a JavaBean in the format that JMX expects. Also note that scala Set is not visible through JMX, and a JavaConverter <em>cannot</em> be used here. Instead, <a href="http://stackoverflow.com/a/24840520/5266" target="_blank">a structural copy</a> must be done to create a Java Set without the wrapper.</p>
+</div>
+<div>
+<h2>Creating In Place JMX views with CompositeDataView</h2>
+<p>Using a view class is the recommended way to display Scala data in JMX, as it's relatively simple to set up and can be packaged outside of the main class. However, it is possible to embed the JMX logic inside the case class itself, using an in place <a href="http://docs.oracle.com/javase/8/docs/api/javax/management/openmbean/CompositeDataView.html" target="_blank">CompositeDataView</a>.</p>
+<code><pre>
 case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
                            @BeanProperty greeting: String,
                            sender: ActorRef,
@@ -175,13 +158,10 @@ case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
     compositeData
   }
 }
-```
-
-This is messier than using a view, and does not really give you any more programmatic control.  It does, however, minimize the number of types that need to be created.
-
-Finally, the type which registers the Actor with JMX is defined here:
-
-```
+</pre></code>
+<p>This is messier than using a view, and does not really give you any more programmatic control. It does, however, minimize the number of types that need to be created.</p>
+<p>Finally, the type which registers the Actor with JMX is defined here</p>
+<code><pre>
 trait ActorWithJMX extends Actor {
   import jmxexample.AkkaJmxRegistrar._
 
@@ -201,14 +181,14 @@ trait ActorWithJMX extends Actor {
 
   override def postStop() = mbs.unregisterMBean(objName)
 }
-```
-
-The `MXTypeName` is defined by the implementing class, and the actor is defined with its path name and registered in the preStart method when the actor is instantiated.
-
-Note that because this trait extends `preStart` and `postStop`, any actor implementing this trait needs to explicitly call `super.preStart` and `super.postStop` when overriding, to preserve this behavior.
-
-## Future Directions
-
-There's a number of things that can be done with JMX, particularly if macros are involved.  Actors are shown here because they are notoriously dynamic, but any part of your system can be similarly instrumented to expose their state in a running application.
-
-You may also be interested in [JAJMX](https://github.com/dacr/jajmx), a high level JMX API designed for Scala.
+</pre></code>
+<p>The <code>MXTypeName</code> is defined by the implementing class, and the actor is defined with its path name and registered in the preStart method when the actor is instantiated.</p>
+<p>Note that because this trait extends <code>preStart</code> and <code>postStop</code>, any actor implementing this trait needs to explicitly call <code>super.preStart</code> and <code>super.postStop</code> when overriding, to preserve this behavior.</p>
+</div>
+<div>
+<h2>Future Directions</h2>
+<p>There's a number of things that can be done with JMX, particularly if macros are involved. Actors are shown here because they are notoriously dynamic, but any part of your system can be similarly instrumented to expose their state in a running application.</p>
+<p>You may also be interested in <a href="https://github.com/dacr/jajmx" target="_blank">JAJMX</a>, a high level JMX API designed for Scala.</p>
+</div>
+</body>
+</html>

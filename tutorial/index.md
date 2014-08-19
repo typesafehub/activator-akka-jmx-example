@@ -2,7 +2,7 @@
 
 This is an example of how to integrate JMX into your Akka Actors.  Using this method, you can look inside a running Akka application and see exactly what sort of state your actors are in.  Thanks to [Jamie Allen](http://shinolajla.tumblr.com/) for the idea in his book, _[Effective Akka](http://smile.amazon.com/dp/1449360076)_.
 
-## Running
+#Running
 
 Start up Activator with the following options:
 
@@ -28,7 +28,7 @@ You should see this:
 
 ![Example of JMC with jmxexample MXBean](tutorial/jmxexample.jpg)
 
-##Creating an MXBean with an External View Class
+#Creating an MXBean with an External View Class
 
 Actors are relatively simple to set up in JMX, as long as you play by the rules: always use an [MXBean](http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html) (which does not require JAR downloads over RMI), always think about thread safety when [exposing internal variables](http://pveentjer.wordpress.com/2006/11/09/jmx-and-concurrency-problems/), and always create a custom class that provides a view that the MXBean is [happy with](http://stackoverflow.com/a/7514800/5266).
 
@@ -124,7 +124,7 @@ object GreetingHistoryMXView {
 
 Note the use of [ConstructorProperties](http://docs.oracle.com/javase/7/docs/api/java/beans/ConstructorProperties.html) and [BeanProperties](http://www.scala-lang.org/api/current/index.html#scala.beans.BeanProperty) to produce a JavaBean in the format that JMX expects.  Also note that scala Set is not visible through JMX, and a JavaConverter *cannot* be used here.  Instead, [a structural copy](http://stackoverflow.com/a/24840520/5266) must be done to create a Java Set without the wrapper.
 
-## Creating In Place JMX views with CompositeDataView
+#Creating In Place JMX views with CompositeDataView
 
 Using a view class is the recommended way to display Scala data in JMX, as it's relatively simple to set up and can be packaged outside of the main class.  However, it is possible to embed the JMX logic inside the case class itself, using an in place [CompositeDataView](http://docs.oracle.com/javase/8/docs/api/javax/management/openmbean/CompositeDataView.html).
 
@@ -207,7 +207,7 @@ The `MXTypeName` is defined by the implementing class, and the actor is defined 
 
 Note that because this trait extends `preStart` and `postStop`, any actor implementing this trait needs to explicitly call `super.preStart` and `super.postStop` when overriding, to preserve this behavior.
 
-## Future Directions
+#Future Directions
 
 There's a number of things that can be done with JMX, particularly if macros are involved.  Actors are shown here because they are notoriously dynamic, but any part of your system can be similarly instrumented to expose their state in a running application.
 
