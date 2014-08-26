@@ -6,7 +6,7 @@ import javax.management._
 import akka.actor.{ Actor, ActorLogging }
 
 object AkkaJmxRegistrar {
-  val mbs: MBeanServer = ManagementFactory.getPlatformMBeanServer
+  private lazy val mbs: MBeanServer = ManagementFactory.getPlatformMBeanServer
 
   @throws[InstanceAlreadyExistsException]
   @throws[MBeanRegistrationException]
@@ -31,7 +31,7 @@ trait ActorWithJMX extends Actor {
 
   import jmxexample.AkkaJmxRegistrar._
 
-  val objName: ObjectName = new ObjectName("jmxexample", {
+  protected val objName: ObjectName = new ObjectName("jmxexample", {
     import scala.collection.JavaConverters._
     new java.util.Hashtable(
       Map(
@@ -43,9 +43,9 @@ trait ActorWithJMX extends Actor {
 
   def getMXTypeName: String
 
-  override def preStart(): Unit = mbs.registerMBean(this, objName)
+  override def preStart(): Unit = registerToMBeanServer(this, objName)
 
-  override def postStop(): Unit = mbs.unregisterMBean(objName)
+  override def postStop(): Unit = unregisterFromMBeanServer(objName)
 }
 
 /**

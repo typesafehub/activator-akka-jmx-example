@@ -67,37 +67,3 @@ case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
     compositeData
   }
 }
-
-/**
- * The custom MX view class for GreetingHistory.  Private so it can only be
- * called by the companion object.
- */
-class GreetingHistoryMXView @ConstructorProperties(Array(
-  "lastGreetingDate",
-  "greeting",
-  "sender")
-) private (@BeanProperty val lastGreetingDate: java.util.Date,
-  @BeanProperty val greeting: String,
-  @BeanProperty val sender: String,
-  @BeanProperty val randomSet: java.util.Set[String])
-
-/**
- * Companion object for the GreetingHistory view class.  Takes a GreetingHistory and
- * returns GreetingHistoryMXView
- */
-object GreetingHistoryMXView {
-  def apply(greetingHistory: GreetingHistory): GreetingHistoryMXView = {
-    val lastGreetingDate: java.util.Date = greetingHistory.lastGreetedDate
-    val greeting: String = greetingHistory.greeting
-    val actorName: String = greetingHistory.sender.path.name
-    val randomSet = scalaToJavaSetConverter(greetingHistory.randomSet)
-    new GreetingHistoryMXView(lastGreetingDate, greeting, actorName, randomSet)
-  }
-
-  // http://stackoverflow.com/a/24840520/5266
-  def scalaToJavaSetConverter[T](scalaSet: Set[T]): java.util.Set[String] = {
-    val javaSet = new java.util.HashSet[String]()
-    scalaSet.foreach(entry => javaSet.add(entry.toString))
-    javaSet
-  }
-}

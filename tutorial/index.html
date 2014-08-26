@@ -21,55 +21,113 @@ jmc
 </div>
 <div>
 <h2>Creating an MXBean with an External View Class</h2>
-<p>Actors are relatively simple to set up in JMX, as long as you play by the rules always use an <a href="http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html" target="_blank">MXBean</a> (which does not require JAR downloads over RMI), always think about thread safety when <a href="http://pveentjer.wordpress.com/2006/11/09/jmx-and-concurrency-problems/" target="_blank">exposing internal variables</a>, and always create a custom class that provides a view that the MXBean is <a href="http://stackoverflow.com/a/7514800/5266" target="_blank">happy with</a>.</p>
-<p>Here's the Actor with an exposed JMX GreeterMXBean. As long as it ends in "MXBean", JMX is happy. It will display the properties defined in that trait</p>
+<p>Exposing state through JMX is easy, as long as you play by the rules always use an <a href="http://docs.oracle.com/javase/7/docs/api/javax/management/MXBean.html" target="_blank">MXBean</a> (which does not require JAR downloads over RMI), always think about thread safety when <a href="http://pveentjer.wordpress.com/2006/11/09/jmx-and-concurrency-problems/" target="_blank">exposing internal variables</a>, and always create a custom class that provides a view that the MXBean is <a href="http://docs.oracle.com/cd/E19698-01/816-7609/6mdjrf844/index.html" target="_blank">happy with</a>.</p>
+<p>Here's a trait that exposes some state, <code>GreetingHistory</code>. As long as the trait ends in "MXBean", JMX is happy. It will display the properties defined in that trait.</p>
 <code><pre>
 /**
  * MXBean interface: this determines what the JMX tool will see.
  */
 trait GreeterMXBean {
+
+  /**
+   * Uses composite data view to show the greeting history.
+   */
   def getGreetingHistory: GreetingHistory
 
+  /**
+   * Uses a mapping JMX to show the greeting history.
+   */
   def getGreetingHistoryMXView: GreetingHistoryMXView
 }
-
+</pre></code>
+<p>Here's the JMX actor that implements the <code>GreeterMXBean</code> interface. Note that the only thing it does is receive a <code>GreeterHistory</code> case class, and then renders it. There is a catch, however because the greetingHistory variable is accessed both through Akka and through a JMX thread, it must be declared as <code>volatile</code> so that memory access is atomic.</p>
+<code><pre>
 /**
- * An actor with the ActorWithJMX
+ * The JMX view into the Greeter
  */
-class Greeter extends ActorWithJMX with GreeterMXBean {
+class GreeterMXBeanActor extends ActorWithJMX with GreeterMXBean {
 
-  private[this] var greeting = ""
+  // @volatile needed because JMX and the actor model access from different threads
+  @volatile private[this] var greetingHistory: Option[GreetingHistory] = None
 
-  // IMPORTANT: because JMX and the actor access greetingHistory through
-  // different threads, it should be marked as volatile to keep memory synchronized.
-  @volatile
-  private[this] var greetingHistory: Option[GreetingHistory] = None
+  def receive = {
+    case gh: GreetingHistory =>
+      greetingHistory = Some(gh)
+  }
 
   def getGreetingHistory: GreetingHistory = greetingHistory.orNull
 
   def getGreetingHistoryMXView: GreetingHistoryMXView = greetingHistory.map(GreetingHistoryMXView(_)).orNull
 
-  def receive = {
+  // Maps the MXType to this actor.
+  override def getMXTypeName: String = "GreeterMXBean"
+}
+</pre></code>
+<p>The actor which generates the <code>GreetingHistory</code> case class -- the state that you want to expose -- should be a parent of the JMX bean, and have a supervisor strategy that can handle JMX exceptions</p>
+<code><pre>
+trait ActorJMXSupervisor extends Actor with ActorLogging {
+
+  import akka.actor.OneForOneStrategy
+  import akka.actor.SupervisorStrategy._
+  import scala.concurrent.duration._
+
+  override val supervisorStrategy =
+    OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+      case e: JMRuntimeException =>
+        log.error(e, "Supervisor strategy STOPPING actor from errors during JMX invocation")
+        Stop
+      case e: JMException =>
+        log.error(e, "Supervisor strategy STOPPING actor from incorrect invocation of JMX registration")
+        Stop
+      case t =>
+        // Use the default supervisor strategy otherwise.
+        super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
+    }
+}
+
+class Greeter extends Actor with ActorJMXSupervisor {
+
+  private[this] var greeting: String = ""
+
+  private[this] val jmxActor = context.actorOf(Props(classOf[GreeterMXBeanActor]), "jmx")
+
+  def receive: Receive = {
     case WhoToGreet(who) =>
       greeting = s"hello, $who"
     case Greet =>
       sender ! Greeting(greeting) // Send the current greeting back to the sender
     case GreetingAcknowledged =>
-      greetingHistory = Some(GreetingHistory(new java.util.Date(), greeting, sender))
+      // Update the JMX actor.
+      val greetingHistory = GreetingHistory(new java.util.Date(), greeting, sender())
+      jmxActor ! greetingHistory
   }
-
-  // Maps the MXType to this actor.
-  override def getMXTypeName: String = "GreeterMXBean"
 }
 </pre></code>
-<p>The raw GreetingHistory case class looks like this</p>
+<p>And finally, the raw GreetingHistory case class looks like this</p>
 <code><pre>
 case class GreetingHistory(lastGreetedDate: java.util.Date,
                            greeting: String,
                            sender: ActorRef,
                            randomSet:Set[String] = Set("1", "2", "3"))
 </pre></code>
-<p>Here's how to display it using a view class for JMX</p>
+<p>This is a fairly standard Scala case class, but JMX doesn't know what to do with it. From the <a href="http://docs.oracle.com/cd/E19698-01/816-7609/6mdjrf844/index.html" target="_blank">Open MBean Data Types</a> chapter of the , the only acceptable values are</p>
+<ul>
+<li><code>java.lang.Boolean</code></li>
+<li><code>java.lang.Byte</code></li>
+<li><code>java.lang.Character</code></li>
+<li><code>java.lang.Short</code></li>
+<li><code>java.lang.Integer</code></li>
+<li><code>java.lang.Long</code></li>
+<li><code>java.lang.Float</code></li>
+<li><code>java.lang.Double</code></li>
+<li><code>java.lang.String</code></li>
+<li><code>java.math.BigInteger</code></li>
+<li><code>java.math.BigDecimal</code></li>
+<li><code>javax.management.ObjectName</code></li>
+<li><code>javax.management.openmbean.CompositeData (interface)</code></li>
+<li><code>javax.management.openmbean.TabularData (interface)</code></li>
+</ul>
+<p>Fortunately, it's easy to map Here's how to display <code>GreetingHistory</code> using a view class for JMX, using <a href="http://docs.oracle.com/javase/7/docs/api/java/beans/ConstructorProperties.html" target="_blank">ConstructorProperties</a> and <a href="http://www.scala-lang.org/api/current/index.html#scala.beans.BeanProperty" target="_blank">BeanProperties</a> to produce a JavaBean in the format that JMX expects. Also note that <code>Set</code> is not visible through JMX, and <code>JavaConverters</code> <em>cannot</em> be used here to convert to <code>java.util.Set</code>. Instead, <a href="http://stackoverflow.com/a/24840520/5266" target="_blank">a structural copy</a> must be done to create a Java Set without the wrapper</p>
 <code><pre>
 /**
  * The custom MX view class for GreetingHistory.  Private so it can only be
@@ -106,7 +164,6 @@ object GreetingHistoryMXView {
   }
 }
 </pre></code>
-<p>Note the use of <a href="http://docs.oracle.com/javase/7/docs/api/java/beans/ConstructorProperties.html" target="_blank">ConstructorProperties</a> and <a href="http://www.scala-lang.org/api/current/index.html#scala.beans.BeanProperty" target="_blank">BeanProperties</a> to produce a JavaBean in the format that JMX expects. Also note that scala Set is not visible through JMX, and a JavaConverter <em>cannot</em> be used here. Instead, <a href="http://stackoverflow.com/a/24840520/5266" target="_blank">a structural copy</a> must be done to create a Java Set without the wrapper.</p>
 </div>
 <div>
 <h2>Creating In Place JMX views with CompositeDataView</h2>
@@ -160,7 +217,7 @@ case class GreetingHistory(@BeanProperty lastGreetedDate: java.util.Date,
 }
 </pre></code>
 <p>This is messier than using a view, and does not really give you any more programmatic control. It does, however, minimize the number of types that need to be created.</p>
-<p>Finally, the type which registers the Actor with JMX is defined here</p>
+<p>Finally, the type which registers the JMX Actor with JMX is defined here</p>
 <code><pre>
 trait ActorWithJMX extends Actor {
   import jmxexample.AkkaJmxRegistrar._
